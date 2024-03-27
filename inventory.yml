@@ -1,0 +1,26 @@
+all:
+  children:
+    nodes:
+      hosts:
+        node1:
+          ansible_host: 192.168.0.73
+        node2:
+          ansible_host: 192.168.0.191
+        node3:
+          ansible_host: 192.168.0.76
+        node4:
+          ansible_host: 192.168.0.193
+        node5:
+          ansible_host: 192.168.0.71
+        node6:
+          ansible_host: 192.168.0.79
+    zookeeper:
+      hosts:
+        zk1:
+          ansible_host: 192.168.0.77
+        zk2:
+          ansible_host: 192.168.0.78
+        zk3:
+          ansible_host: 192.168.0.75
+  vars:
+    ansible_user: ubuntu

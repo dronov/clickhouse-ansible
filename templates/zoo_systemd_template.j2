@@ -1,0 +1,20 @@
+[Unit]
+Description=zookeeper:3.9.2
+After=network.target
+[Service]
+Type=forking
+User=root
+Group=root
+WorkingDirectory=/usr/local/zookeeper
+ExecStart=/usr/local/zookeeper/bin/zkServer.sh start
+ExecStop=/usr/local/zookeeper/bin/zkServer.sh stop
+ExecReload=/usr/local/zookeeper/bin/zkServer.sh restart
+RestartSec=30
+Restart=always
+PrivateTmp=yes
+PrivateDevices=yes
+LimitCORE=infinity
+LimitNOFILE=500000
+[Install]
+WantedBy=multi-user.target
+Alias=zookeeper.service

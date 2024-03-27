@@ -1,0 +1,46 @@
+---
+- name: Устанавливаем и настраиваем Clickhouse на серверах группы nodes из inventory
+  hosts: nodes
+  become: yes
+  tasks:
+    - name: Установить необходимые пакеты
+      ansible.builtin.package:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - apt-transport-https
+        - ca-certificates
+        - dirmngr
+
+    - name: Добавить ключ репозитория ClickHouse
+      ansible.builtin.command:
+        cmd: "apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 8919F6BD2B48D754"
+
+    - name: Добавить репозиторий ClickHouse
+      ansible.builtin.lineinfile:
+        path: "/etc/apt/sources.list.d/clickhouse.list"
+        line: "deb https://packages.clickhouse.com/deb stable main"
+        create: yes
+        state: present
+
+    - name: Обновить список пакетов
+      ansible.builtin.command:
+        cmd: "apt-get update"
+
+    - name: Установить ClickHouse Server и Client
+      ansible.builtin.package:
+        name:
+          - clickhouse-server
+          - clickhouse-client
+        state: present
+    
+    - name: Скопировать templates/clickhouse_config_xml_template.j2 конфиг в /etc/clickhouse-server/config.xml на nodes кх
+      template:
+        src: templates/clickhouse_config_xml_template.j2
+        dest: /etc/clickhouse-server/config.xml
+
+    - name: Запустить сервис ClickHouse Server
+      ansible.builtin.service:
+        name: clickhouse-server
+        state: started
+        enabled: yes

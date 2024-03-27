@@ -1,0 +1,33 @@
+---
+- name: Общие настройки всех серверов
+  hosts: all
+  become: yes
+  tasks:
+    - name: Остановить службу UFW
+      systemd:
+        name: ufw
+        state: stopped
+        enabled: no
+    - name: Установить пакет ntp
+      apt:
+        name: ntp
+        state: present
+    - name: Установить пакет curl
+      apt:
+        name: curl
+        state: present
+    - name: Установить пакет wget
+      apt:
+        name: wget
+        state: present
+    - name: Добавить команду синхронизации в cron
+      cron:
+        name: "Sync Time via ntpdate"
+        minute: "*/5"
+        job: "/usr/sbin/ntpdate -u clock.isc.org >/dev/null 2>&1"
+        state: present
+        user: root
+    - name: Копировать строки из шаблона в /etc/hosts
+      template:
+        src: templates/hosts_template.j2
+        dest: /etc/hosts

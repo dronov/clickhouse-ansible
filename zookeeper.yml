@@ -1,0 +1,101 @@
+---
+- name: Устанавливаем и настраиваем Zookeper на серверах группы zookeeper из inventory
+  hosts: zookeeper
+  become: yes
+  tasks:
+    - name: Установить OpenJDK 8 JRE
+      ansible.builtin.package:
+        name: openjdk-8-jre
+        state: present
+      register: jre_install_result
+    - name: Установить OpenJDK 8 JDK
+      ansible.builtin.package:
+        name: openjdk-8-jdk
+        state: present
+      register: jdk_install_result
+    - name: Вывести сообщение об установке Java
+      ansible.builtin.debug:
+        msg: "OpenJDK 8 JRE {{ 'was' if jre_install_result.changed else 'is already' }} installed, and OpenJDK 8 JDK {{ 'was' if jdk_install_result.changed else 'is already' }} installed"
+    - name: Создать группу zookeeper
+      group:
+        name: zookeeper
+        state: present
+    - name: Создать пользователя zookeeper
+      user:
+        name: zookeeper
+        comment: ZooKeeper
+        shell: /sbin/nologin
+        group: zookeeper
+        system: yes
+    - name: Загрузить архив ZooKeeper
+      get_url:
+        url: "http://dlcdn.apache.org/zookeeper/zookeeper-3.9.2/apache-zookeeper-3.9.2-bin.tar.gz"
+        dest: /tmp/apache-zookeeper-3.9.2-bin.tar.gz
+    - name: Распаковать архив ZooKeeper
+      ansible.builtin.command: "tar zxvf /tmp/apache-zookeeper-3.9.2-bin.tar.gz -C /usr/local"
+    - name: Создать символическую ссылку для ZooKeeper
+      ansible.builtin.file:
+        src: /usr/local/apache-zookeeper-3.9.2-bin
+        dest: /usr/local/zookeeper
+        state: link
+    - name: Назначить владельца для каталога ZooKeeper
+      ansible.builtin.file:
+        path: /usr/local/apache-zookeeper-3.9.2-bin
+        owner: zookeeper
+        group: zookeeper
+        recurse: yes
+    - name: Создать каталог для данных ZooKeeper
+      ansible.builtin.file:
+        path: /var/lib/zookeeper
+        state: directory
+        owner: zookeeper
+        group: zookeeper
+    - name: Создать каталог для журналов ZooKeeper
+      ansible.builtin.file:
+        path: /var/log/zookeeper
+        state: directory
+        owner: zookeeper
+        group: zookeeper
+    - name: Копировать конфиг zookeeper в /usr/local/zookeeper/conf/zoo.cfg
+      template:
+        src: templates/zoo_template.j2
+        dest: /usr/local/zookeeper/conf/zoo.cfg
+    - name: Назначить владельца для файла конфигурации ZooKeeper
+      ansible.builtin.file:
+        path: /usr/local/zookeeper/conf/zoo.cfg
+        owner: zookeeper
+        group: zookeeper
+    - name: Создать каталог для конфигурации ZooKeeper
+      ansible.builtin.file:
+        path: /etc/zookeeper
+        state: directory
+        owner: zookeeper
+        group: zookeeper
+    - name: Создать символическую ссылку для файла конфигурации ZooKeeper
+      ansible.builtin.file:
+        src: /usr/local/zookeeper/conf/zoo.cfg
+        dest: /etc/zookeeper/zoo.cfg
+        state: link
+        owner: zookeeper
+        group: zookeeper
+    - name: Скопировать файл с systemd zookeeper конфигом в /lib/systemd/system/zookeeper.service
+      template:
+        src: templates/zoo_systemd_template.j2
+        dest: /lib/systemd/system/zookeeper.service
+    - name: Получить номер ноды в кластере ZooKeeper
+      set_fact:
+        zk_node_number: "{{ hostvars[inventory_hostname]['inventory_hostname_short'] | replace('zk', '') }}"
+    - name: Удалить файл myid во избежание последствий костыля далее
+      ansible.builtin.file:
+        path: "/var/lib/zookeeper/myid"
+        state: absent
+    - name: Создать файл myid для каждой ноды Zookeeper
+      ansible.builtin.lineinfile:
+        path: "/var/lib/zookeeper/myid"
+        create: yes
+        line: "{{ zk_node_number }}"
+    - name: Запустить службу ZooKeeper
+      ansible.builtin.systemd:
+        name: zookeeper
+        state: restarted
+        enabled: yes
